@@ -1,0 +1,219 @@
+1–7: Import necessary modules
+python
+Copy
+Edit
+import cv2
+import numpy as np
+import pyautogui
+import time
+import HandTrackingModule as htm
+import math
+cv2: Used for accessing the webcam and displaying images.
+
+numpy: Used for interpolation and array operations.
+
+pyautogui: Controls the mouse and keyboard.
+
+time: For adding delays to avoid multiple clicks.
+
+htm: A custom Hand Tracking module (likely built on top of MediaPipe).
+
+math: For calculating distances between fingers.
+
+
+
+9–12: Configuration settings
+python
+Copy
+Edit
+wCam, hCam = 1280, 720
+frameR = 100
+smoothening = 5
+Webcam resolution set to 1280×720.
+
+frameR: Reduces active tracking area to avoid edge movement issues.
+
+smoothening: Smoothes out the cursor movement to prevent jerks.
+
+
+
+14–17: Initialize state variables
+python
+Copy
+Edit
+pLocX, pLocY = 0, 0
+cLocX, cLocY = 0, 0
+drag = False
+zoom_start_distance = 0
+zoom_threshold = 40
+pLocX, pLocY: Previous mouse positions.
+
+cLocX, cLocY: Current interpolated positions.
+
+drag: To track if drag is active.
+
+zoom_start_distance: Stores the initial distance for zooming.
+
+zoom_threshold: Minimum distance change to trigger zoom action.
+
+
+
+19–22: Initialize webcam and screen
+python
+Copy
+Edit
+cap = cv2.VideoCapture(0)
+cap.set(3, wCam)
+cap.set(4, hCam)
+Opens webcam stream.
+
+Sets the resolution of the webcam feed.
+
+
+
+24: Initialize hand detector and screen dimensions
+python
+Copy
+Edit
+detector = htm.HandDetector(maxHands=1, detectionCon=0.8)
+screenW, screenH = pyautogui.size()
+Detects one hand with 80% confidence.
+
+Gets the width and height of the user’s screen for cursor mapping.
+
+
+
+
+26–75: Main loop for frame processing
+python
+Copy
+Edit
+while True:
+Continuously captures and processes webcam frames.
+
+
+
+
+27–29: Read and detect hands
+python
+Copy
+Edit
+    success, img = cap.read()
+    img = detector.findHands(img)
+    lmList = detector.findPosition(img, draw=False)
+Reads frame from webcam.
+
+Detects hand and landmarks.
+
+Gets landmark list (lmList) without drawing on the image.
+
+
+
+
+31–33: Extract coordinates
+python
+Copy
+Edit
+    if len(lmList) != 0:
+        x1, y1 = lmList[8][1:]  # Index finger tip
+        x2, y2 = lmList[4][1:]  # Thumb tip
+        x3, y3 = lmList[12][1:]  # Middle finger tip
+Only proceed if landmarks are detected.
+
+Extracts tip positions of index, thumb, and middle fingers.
+
+35: Get which fingers are up
+python
+Copy
+Edit
+        fingers = detector.fingersUp()
+Returns a list like [1,1,0,0,0] representing which fingers are raised.
+
+
+
+38–45: Move mouse
+python
+Copy
+Edit
+        if fingers[1] == 1 and fingers[2] == 0:
+Only index finger up (used to move mouse):
+
+Maps finger position from webcam resolution to screen size.
+
+Applies smoothing.
+
+Moves cursor using pyautogui.moveTo.
+
+
+
+47–51: Left click gesture
+python
+Copy
+Edit
+        if fingers[0] == 1 and fingers[1] == 1:
+Thumb and index finger up:
+
+If they are close (< 40 px apart), trigger a left click.
+
+Sleep for 0.3s to avoid multiple clicks.
+
+
+
+53–57: Right click gesture
+python
+Copy
+Edit
+        if fingers[1] == 1 and fingers[2] == 1 and fingers[3] == 0:
+Index and middle finger up, ring finger down:
+
+If fingers are close, perform a right click.
+
+
+
+59–66: Drag gesture
+python
+Copy
+Edit
+        if fingers[1] == 1 and fingers[2] == 1 and fingers[3] == 0 and fingers[0] == 0:
+Index and middle up, thumb and ring down:
+
+Start drag using mouseDown() if not already dragging.
+
+Move mouse with finger.
+
+Else (line 66), release drag if it was active.
+
+
+
+
+68–75: Zoom gesture
+python
+Copy
+Edit
+        if fingers[0] == 1 and fingers[1] == 1 and fingers[2] == 0:
+Thumb and index up only:
+
+Measure distance between them.
+
+If difference from initial distance > threshold, trigger Ctrl + or Ctrl - for zoom in/out.
+
+Update zoom_start_distance after each zoom to avoid rapid zooming.
+
+
+
+
+77–81: Display & exit
+python
+Copy
+Edit
+    cv2.imshow("Virtual Mouse", img)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+Show video feed.
+
+Press 'q' to exit.
+
+Clean up webcam and windows.
